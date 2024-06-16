@@ -1,4 +1,4 @@
-CC=gcc
+CC=arm-linux-gnueabi-gcc
 IDIR=./
 CFLAGS=-g -I${IDIR}
 
