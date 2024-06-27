@@ -1,7 +1,7 @@
-CC=gcc
+CC=arm-linux-gnueabi-gcc
 IDIR=./
 CFLAGS=-g -I${IDIR}
-LFLAGS=-L/usr/lib/x86_64-linux-gnu
+LFLAGS=
 LIBS=-lcurl -lpthread
 
 ODIR=./
