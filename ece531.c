@@ -67,12 +67,6 @@ int main(int argc, char* argv[])
         break;
       case 'd':
         // Do an http delete of the string past the url
-        if (strlen(optarg) < 1 ||  strlen(optarg) > 64) {
-          fprintf(stderr, "%s Unable to open file\n", argv[0]);
-          exit(EXIT_FAILURE);
-        } else {
-          strncpy(del_file, optarg, strlen(optarg));
-        }
         ece531_del = true;
         break;
       case 'v':
@@ -157,7 +151,7 @@ int main(int argc, char* argv[])
         struct curl_slist *headers = NULL;
         char delete_command[96];
 
-        sprintf(delete_command,"DELE %s", del_file);
+        sprintf(delete_command,"DELE %s", user_text);
         headers = curl_slist_append(headers, delete_command);
 
         /* pass the list of custom commands to the handle */
