@@ -21,17 +21,18 @@ int main(int argc, char* argv[])
   bool url_passed = false;
   bool ece531_post = false;
   char post_text[64];
-  FILE *userfile;
   bool ece531_get = false;
   bool ece531_put = false;
+  FILE *userfile;
   bool ece531_del = false;
+  char del_file[64];
   bool verbose = false;
   struct option ece531_options[] = {
     {"url",   required_argument, 0, 'u' },
     {"post",  required_argument, 0, 'o' },
     {"get",   no_argument,       0, 'g' },
     {"put",   required_argument, 0, 'p' },
-    {"delete",no_argument,       0, 'd' },
+    {"delete",required_argument, 0, 'd' },
     {"verbose",no_argument,      0, 'v' },
     {"help",  no_argument,       0, 'h' },
     {0,        0,                0, 0 }
@@ -88,6 +89,13 @@ int main(int argc, char* argv[])
         break;
       case 'd':
         // Do an http delete of the string past the url
+        if (strlen(optarg) < 1 ||  strlen(optarg) > 64) {
+          fprintf(stderr, "%s Unable to open file\n", argv[0]);
+          exit(EXIT_FAILURE);
+        } else {
+          strncpy(del_file, optarg, strlen(optarg));
+        }
+        ece531_del = true;
         break;
       case 'v':
         // set verbose
@@ -141,6 +149,21 @@ int main(int argc, char* argv[])
                 curl_easy_strerror(res));
 
     } else if (ece531_del) {
+      struct curl_slist *headers = NULL;
+      char delete_command[96];
+
+      sprintf(delete_command,"DELE %s", del_file);
+      headers = curl_slist_append(headers, delete_command);
+
+      /* pass the list of custom commands to the handle */
+      curl_easy_setopt(curl, CURLOPT_QUOTE, headers);
+      res = curl_easy_perform(curl);
+      if(res != CURLE_OK)
+        fprintf(stderr, "curl_easy_perform() failed dele: %s\n",
+                curl_easy_strerror(res));
+
+      curl_slist_free_all(headers); /* free the header list */
+
     } else {
       usage(argv[0]);
       exit(EXIT_FAILURE);
