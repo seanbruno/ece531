@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
   char url[64];
   bool url_passed = false;
   bool ece531_post = false;
+  char post_text[64];
   FILE *userfile;
   bool ece531_get = false;
   bool ece531_put = false;
@@ -27,7 +28,7 @@ int main(int argc, char* argv[])
   bool verbose = false;
   struct option ece531_options[] = {
     {"url",   required_argument, 0, 'u' },
-    {"post",  no_argument,       0, 'o' },
+    {"post",  required_argument, 0, 'o' },
     {"get",   no_argument,       0, 'g' },
     {"put",   required_argument, 0, 'p' },
     {"delete",no_argument,       0, 'd' },
@@ -37,7 +38,7 @@ int main(int argc, char* argv[])
   };
   int option_index = 0;
  
-  while ((opt = getopt_long(argc, argv, "u:ogpdvh", ece531_options, &option_index)) != -1 ) {
+  while ((opt = getopt_long(argc, argv, "u:o:gp:dvh", ece531_options, &option_index)) != -1 ) {
     if ( opt == -1 )
       break;
 
@@ -52,6 +53,18 @@ int main(int argc, char* argv[])
         break;
       case 'o':
         // Read past the URL and then grab a rando string to post to the URL
+        if (strlen(optarg) < 1 ||  strlen(optarg) > 64) {
+            fprintf(stderr, "%s Either no text or too much text for POST command\n", argv[0]);
+            exit(EXIT_FAILURE);
+        } else {
+            int num_chars = 0;
+            for (int i = optind - 1; i < argc; i++) {
+              fprintf(stderr,"Current arg is %s \n", argv[i]);
+              num_chars += sprintf(&post_text[num_chars],"%s ", argv[i]);
+            }
+            fprintf(stderr,"copied text is %s\n", post_text);
+        }
+        ece531_post = true;
         break;
       case 'g':
         // simply curl the web page in the URL
@@ -59,7 +72,7 @@ int main(int argc, char* argv[])
         break;
       case 'p':
         // Do a http put of a file that matches the string past the URL
-        if (strlen(optarg) < 1 ||  strlen(optarg) > 256) {
+        if (strlen(optarg) < 1 ||  strlen(optarg) > 64) {
             fprintf(stderr, "%s Unable to open file\n", argv[0]);
             exit(EXIT_FAILURE);
         } else {
