@@ -132,6 +132,14 @@ int main(int argc, char* argv[])
 
       fclose(userfile);
     } else if (ece531_post) {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, &post_text);
+      /* Send the file across */
+      res = curl_easy_perform(curl);
+      /* Check for errors */
+      if(res != CURLE_OK)
+        fprintf(stderr, "curl_easy_perform() failed post: %s\n",
+                curl_easy_strerror(res));
+
     } else if (ece531_del) {
     } else {
       usage(argv[0]);
