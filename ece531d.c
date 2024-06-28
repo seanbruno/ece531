@@ -48,12 +48,12 @@ int main(int argc, char argv[])
   syslog(LOG_INFO, "%s starting up", progname);
   // Fork and go away
   if ((pid = fork()) == 0) {
-    printf("hello from the child");
+    syslog(LOG_INFO,"hello from the child %d", pid);
   } else if (pid < 0) {
     syslog(LOG_ERR, "%s: failed to fork err %s\n", progname, strerror(errno));
     return ECHILD;
   } else {
-    syslog(LOG_INFO, "%s: parent exiting, good bye\n", progname);
+    syslog(LOG_INFO, "%s: parent exiting pid %d, good bye\n", progname, pid);
     return 0;
   }
 
