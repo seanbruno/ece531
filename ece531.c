@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     {"url",   required_argument, 0, 'u' },
     {"post",  no_argument,       0, 'o' },
     {"get",   no_argument,       0, 'g' },
-    {"put",   no_argument,       0, 'p' },
+    {"put",   required_argument, 0, 'p' },
     {"delete",no_argument,       0, 'd' },
     {"verbose",no_argument,      0, 'v' },
     {"help",  no_argument,       0, 'h' },
@@ -59,20 +59,18 @@ int main(int argc, char* argv[])
         break;
       case 'p':
         // Do a http put of a file that matches the string past the URL
-        if (!optarg) {
-            fprintf(stderr, "%s PUT requires a file argument\n", argv[0]);
-            exit(EXIT_FAILURE);
-        } else if (strlen(optarg) < 1 ||  strlen(optarg) > 256) {
+        if (strlen(optarg) < 1 ||  strlen(optarg) > 256) {
             fprintf(stderr, "%s Unable to open file\n", argv[0]);
             exit(EXIT_FAILURE);
         } else {
           userfile = fopen(optarg,"r");  
           if (!userfile) {
-              fprintf(stderr, "%s Unable to open file %s\n", argv[0], optarg);
-              exit(EXIT_FAILURE);
+            fprintf(stderr, "%s Unable to open file %s\n", argv[0], optarg);
+            exit(EXIT_FAILURE);
+          } else if (verbose) {
+            fprintf(stderr, "Opened %s\n", optarg);
           }
         }
-        fclose(userfile);
         ece531_put = true;
         break;
       case 'd':
@@ -98,15 +96,28 @@ int main(int argc, char* argv[])
   if(curl) {
     curl_easy_setopt(curl, CURLOPT_URL, url);
     if (ece531_get) {
+
       curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
  
       /* Perform the request, res gets the return code */
       res = curl_easy_perform(curl);
       /* Check for errors */
       if(res != CURLE_OK)
-        fprintf(stderr, "curl_easy_perform() failed: %s\n",
+        fprintf(stderr, "curl_easy_perform() failed get: %s\n",
                 curl_easy_strerror(res));
+
     } else if (ece531_put) {
+
+      curl_easy_setopt(curl, CURLOPT_READDATA, &userfile);
+      curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+      /* Send the file across */
+      res = curl_easy_perform(curl);
+      /* Check for errors */
+      if(res != CURLE_OK)
+        fprintf(stderr, "curl_easy_perform() failed upload: %s\n",
+                curl_easy_strerror(res));
+
+      fclose(userfile);
     } else if (ece531_post) {
     } else if (ece531_del) {
     } else {
