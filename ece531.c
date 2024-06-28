@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
 
     } else {
       // Grab the optargs after the URL and setup the POST/PUT/DEL arguments
-      if ((user_input - 1) > argc) {
+      if (user_input >= argc) {
         fprintf(stderr, "%s: no arguments passed when required\n", argv[0]);
         usage(argv[0]);
         exit(EXIT_FAILURE);

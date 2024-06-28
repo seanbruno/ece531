@@ -1,8 +1,9 @@
-CC=arm-linux-gnueabi-gcc
+BUILDROOT_HOME=/home/vagrant/buildroot-2024.02.2
+CC=${BUILDROOT_HOME}/output/host/usr/bin/arm-linux-gcc
 IDIR=./
-CFLAGS=-g -I${IDIR}
+CFLAGS=--sysroot=${BUILDROOT_HOME}/output/staging -g
 LFLAGS=
-LIBS=-lcurl -lpthread
+LIBS=-lcurl -uClibc -lc
 
 ODIR=./
 LDIR=./
