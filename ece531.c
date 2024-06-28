@@ -6,8 +6,10 @@
 #include <stdbool.h>
 #include <curl/curl.h>
  
-void usage()
+void usage(char *progname)
 {
+  fprintf(stderr, "Usage: %s -u|--url url\n [-o|--post]\n [-g|--get]\n [-p|--put]\n [-d|--delete]\n [-h|--help]\n [-v]\n [string for post|put|delete]\n",
+          progname);
 }
 
 int main(int argc, char* argv[])
@@ -18,6 +20,7 @@ int main(int argc, char* argv[])
   char url[64];
   bool url_passed = false;
   bool ece531_post = false;
+  FILE *userfile;
   bool ece531_get = false;
   bool ece531_put = false;
   bool ece531_del = false;
@@ -29,7 +32,8 @@ int main(int argc, char* argv[])
     {"put",   no_argument,       0, 0 },
     {"delete",no_argument,       0, 0 },
     {"help",  no_argument,       0, 0 },
-    {"verbose",no_argument,        0, 0}
+    {"verbose",no_argument,      0, 0 },
+    {0,        0,                0, 0 }
   };
   int option_index;
  
@@ -64,6 +68,21 @@ int main(int argc, char* argv[])
         break;
       case 'p':
         // Do a http put of a file that matches the string past the URL
+        if (!optarg) {
+            fprintf(stderr, "%s PUT requires a file argument\n", argv[0]);
+            exit(EXIT_FAILURE);
+        } else if (strlen(optarg) < 1 ||  strlen(optarg) > 256) {
+            fprintf(stderr, "%s Unable to open file\n", argv[0]);
+            exit(EXIT_FAILURE);
+        } else {
+          userfile = fopen(optarg,"r");  
+          if (!userfile) {
+              fprintf(stderr, "%s Unable to open file %s\n", argv[0], optarg);
+              exit(EXIT_FAILURE);
+          }
+        }
+        fclose(userfile);
+        ece531_put = true;
         break;
       case 'd':
         // Do an http delete of the string past the url
@@ -74,15 +93,13 @@ int main(int argc, char* argv[])
         break;
       case 'h':
       default: /* '?' */
-        fprintf(stderr, "Usage: %s -u|--url url\n [-o|--post]\n [-g|--get]\n [-p|--put]\n [-d|--delete]\n [-h|--help]\n [-v]\n [string for post|put|delete]\n",
-          argv[0]);
-        exit(EXIT_FAILURE);
+        usage(argv[0]);
+        exit(EXIT_SUCCESS);
     }
   }
 
   if (!url_passed) {
-    fprintf(stderr, "Usage: %s -u|--url url \n[-o|--post] [-g|--get] [-p|--put] [-d|--delete] [-h|--help] [-v] [string for post|put|delete]\n",
-            argv[0]);
+    usage(argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -98,8 +115,14 @@ int main(int argc, char* argv[])
       if(res != CURLE_OK)
         fprintf(stderr, "curl_easy_perform() failed: %s\n",
                 curl_easy_strerror(res));
+    } else if (ece531_put) {
+    } else if (ece531_post) {
+    } else if (ece531_del) {
+    } else {
+      usage(argv[0]);
+      exit(EXIT_FAILURE);
     }
- 
+
     /* always cleanup */
     curl_easy_cleanup(curl);
   }
