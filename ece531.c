@@ -8,7 +8,7 @@
  
 void usage(char *progname)
 {
-  fprintf(stderr, "Usage: %s -u|--url url\n [-o|--post]\n [-g|--get]\n [-p|--put]\n [-d|--delete]\n [-h|--help]\n [-v]\n [string for post|put|delete]\n",
+  fprintf(stderr, "Usage: %s -u|--url url\n [-o|--post]\n [-g|--get]\n [-p|--put]\n [-d|--delete]\n [-h|--help]\n [-v|--verbose]\n [string for post|put|delete]\n",
           progname);
 }
 
@@ -26,27 +26,18 @@ int main(int argc, char* argv[])
   bool ece531_del = false;
   bool verbose = false;
   struct option ece531_options[] = {
-    {"url",   required_argument, 0, 0 },
-    {"post",  no_argument,       0, 0 },
-    {"get",   no_argument,       0, 0 },
-    {"put",   no_argument,       0, 0 },
-    {"delete",no_argument,       0, 0 },
-    {"help",  no_argument,       0, 0 },
-    {"verbose",no_argument,      0, 0 },
+    {"url",   required_argument, 0, 'u' },
+    {"post",  no_argument,       0, 'o' },
+    {"get",   no_argument,       0, 'g' },
+    {"put",   no_argument,       0, 'p' },
+    {"delete",no_argument,       0, 'd' },
+    {"verbose",no_argument,      0, 'v' },
+    {"help",  no_argument,       0, 'h' },
     {0,        0,                0, 0 }
   };
-  int option_index;
+  int option_index = 0;
  
-  /*
-    -u/--url
-    -o/--post
-    -g/--get
-    -p/--put
-    -d/--delete
-    -h/--help
-  */
-  while (1) {
-    opt = getopt_long(argc, argv, "u:ogpdvh", ece531_options, &option_index);
+  while ((opt = getopt_long(argc, argv, "u:ogpdvh", ece531_options, &option_index)) != -1 ) {
     if ( opt == -1 )
       break;
 
@@ -54,7 +45,7 @@ int main(int argc, char* argv[])
       case 'u':
         // check for various errors in the url
         if (strlen(optarg) <= 0)
-          break; // 
+          break;
         // do a stcopy
         strncpy(url, optarg, strlen(optarg));
         url_passed = true;
