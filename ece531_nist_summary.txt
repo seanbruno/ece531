@@ -1,0 +1,55 @@
+Sean Bruno
+ECE 531 - Summer 2004
+HW: NIST Summary
+
+NIST 800-145 defines the essential characteristics, service models, and four
+deployment models for the term Cloud Computing.
+
+The essential characteristics of a Cloud Computing platform consists of:
+
+On-demand Self Service such that a customer can instantiate and work on systems
+when it is convient for them.
+
+Broad Network Access such that and service deployed to the Cloud Computing
+platform is available from most of, if not all of, the Internet.
+
+Resource Pooling so that the Cloud Computing platform abstracts hardware
+resources away from the customer such that shared storage, memory and cpu are
+not readily apparent to the end user.
+
+Rapid Elasticity to allows dynamic or threshold based scaling of services
+dependant on demand.
+
+Measured Service to allow users and platform operators to properly scale
+the environment to tailor performance to specific requirements.
+
+NIST defines the following Service Models for Cloud Computing that characterize
+three different levels of abstraction and configuration:
+
+Software as a Service (SaaS): Simply running the customer's software without
+allowing for any control of the underlying hardware. Typically this software 
+comes in a default configuration and is deployed with a limited amount of 
+changes for the customer. Many commercial software packages can be purchased
+in this configuration.
+
+Platform as a Service (PaaS):  End user creates and deploys custom software
+that is deployed without knowledge of underlying hardware.  Custom webapps and
+software are the most commond type of PaaS deployments.
+
+Infrastructure as a Service (IaaS): End user picks the hardware specifications
+and operating system, configures memory, storage and CPU. Total control is on
+the customer and they administer this as though it were a real system.
+
+Finally, NIST defines the Deployment Models to characterize how the cloud 
+platform is provisioned to support its user base.
+
+Private Cloud models restrict access to resources to a single organization's use.
+No shared storage or networking here.
+
+Community Cloud models restrict access and use to groups that share a common 
+resource or goal.
+
+Public Cloud is a free for all.  This is the typical model that most customers use
+in Amazon EC2, Google Cloud and Microsoft Azure.
+
+Hybrid Cloud is a combination of any of these three models.

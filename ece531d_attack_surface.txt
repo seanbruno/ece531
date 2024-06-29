@@ -1,0 +1,43 @@
+Sean Bruno
+ECE531 - Summer 2024
+29 June 2004
+HW: Attack Surface Write Up
+
+So far in this class, I've written two separate but related applications.
+
+The ece531.c program using libcurl is dependant on some amount of user input
+from the command line.  Because of this, I chose not to use dynamic allocation
+of memory for the various buffers strewn about the code.  Static arrays are
+a very primitive way to keep certain types of user input from overflowing into
+unallocated memory.
+
+The remote web server being accessed by this program could return malicious
+files and responses to the pretty naive and inexperienced mechanisms that were
+implemented in this code.  Some errors are being processed, but the actual
+returned data is not being examined in any meaningful manner.
+
+The ece531d.c program that was written to explore daemons and stand alone
+server process does allow for user innput, but currently ignores what it
+is given in main().  
+
+In order to log the time and date, I used the gettimeofday() function call
+which depends on the dynamic linker providing me the correct version and 
+symbols for this library.  It might be possible for someone to maliciously 
+link in a different system call with the same symbol names to cause execution
+of this application to behave incorrectly.  In order to bypass this, I have
+changed compilation to be static.  It increases the size of the binary, but 
+makes it less likely that this applicaitno would execute poorly on a 
+unknown system.
+
+The logging functions were also used via dynamic linking.  Changing this
+to static means that the install target must support the syslog methods
+that are implemented by the linked library.  Since we control the target
+deployment platform, this shouldn't be an issue.
+
+However, this increased the size of the deployed binary quite a bit.
+
+$ ll ece531d
+-rwxrwxr-x  1 sbruno sbruno 16760 Jun 28 15:45 ece531d*
+$ gcc -o ece531d -static ece531d.c
+$ ll ece531d
+-rwxrwxr-x 1 sbruno sbruno 1090920 Jun 29 13:54 ece531d*
