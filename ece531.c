@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <curl/curl.h>
  
+#define MAX_STR_LEN 64
 void usage(char *progname)
 {
   fprintf(stderr, "Usage: %s -u|--url url\n [-o|--post]\n [-g|--get]\n [-p|--put]\n [-d|--delete]\n [-h|--help]\n [-v|--verbose]\n [string for post|put|delete]\n",
@@ -17,15 +18,15 @@ int main(int argc, char* argv[])
   int opt;
   CURL *curl;
   CURLcode res;
-  char url[64];
+  char url[MAX_STR_LEN];
   bool url_passed = false;
   bool ece531_post = false;
-  char user_text[64];
+  char user_text[MAX_STR_LEN];
   bool ece531_get = false;
   bool ece531_put = false;
   FILE *userfile;
   bool ece531_del = false;
-  char del_file[64];
+  char del_file[MAX_STR_LEN];
   bool verbose = false;
   struct option ece531_options[] = {
     {"url",   required_argument, 0, 'u' },
@@ -52,7 +53,7 @@ int main(int argc, char* argv[])
         if (strlen(optarg) <= 0)
           break;
         // do a stcopy
-        strncpy(url, optarg, strlen(optarg));
+        strncpy(url, optarg, MAX_STR_LEN);
         url_passed = true;
         break;
       case 'o':
@@ -117,7 +118,7 @@ int main(int argc, char* argv[])
 
       if (ece531_put) {
         // Do a http put of a file that matches the string past the URL
-        if (strlen(user_text) < 1 ||  strlen(user_text) > 64) {
+        if (strlen(user_text) < 1 ||  strlen(user_text) > MAX_STR_LEN) {
             fprintf(stderr, "%s Unable to open file\n", user_text);
             exit(EXIT_FAILURE);
         } else {
