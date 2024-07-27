@@ -18,6 +18,12 @@ char therm_file[] = "/var/log/temp";
 // format:  action:=<on|off> timestamp:=posix_time
 char heater_file[] = "/var/log/status";
 
+// Define our schedule of temps
+struct {
+	float user_temp[10];
+	struct tm time_of_day[10];
+} temperature_schedule;
+
 //void openlog(const char *ident, int option, int facility);
 //void syslog(int priority, const char *format, ...);
 //void closelog(void);
@@ -95,9 +101,9 @@ void _ece531_toggle_tc(char *_thermo_cmd, char *_heater_file)
 int main(int argc, char argv[])
 {
   pid_t pid;
-  int heatercontrol = 0;
+  int heatercontrol = 6;
   char thermo_buf[128];
-  char action[] = "OFF";
+  float cur_temp = 0.0;
 
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
   syslog(LOG_INFO, "%s starting up", progname);
@@ -134,16 +140,21 @@ int main(int argc, char argv[])
   // Check for /var/log/temperatur, error and exit if failure with log message
   // Else we will read from it forever.
   // while forever, do sleep 1 and log time
+  temperature_schedule.user_temp[0] = 25.0;
   do {
     _ece531_read_data(thermo_buf, therm_file);
-    sleep(1);
-    // Every 30 seconds, turn off the heater for now.
+    cur_temp = atof(thermo_buf);
+    // Every 5 seconds, turn off the heater for now.
     heatercontrol++;
-    if (heatercontrol > 30) {
+    if (heatercontrol > 5) {
+	if (cur_temp < temperature_schedule.user_temp[0]) {
+		_ece531_toggle_tc("ON", heater_file);
+	} else if (cur_temp > temperature_schedule.user_temp[0]) {
+		_ece531_toggle_tc("OFF", heater_file);
+	}
         heatercontrol = 0;
-	_ece531_toggle_tc(action, heater_file);
     }
-  } while (1) ;
+  } while (sleep(1) == 0) ;
 
   syslog(LOG_ERR, "%s: SHOULD NOT BE HERE error opening thermocouple file: %s\n", progname, strerror(errno));
   return 0;
