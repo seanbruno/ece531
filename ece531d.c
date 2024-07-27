@@ -15,6 +15,8 @@
 
 const char progname[] = "ece531d";
 char therm_file[] = "/var/log/temp";
+// format:  action:=<on|off> timestamp:=posix_time
+char heater_file[] = "/var/log/status";
 
 //void openlog(const char *ident, int option, int facility);
 //void syslog(int priority, const char *format, ...);
@@ -41,10 +43,37 @@ static void _ece531d_sig_handler(const int signal)
   }
 }
 
+// read from the thermocouple file 
+// into the string given by temp.
+void _ece531_read_data(char *_thermo_buf, char *_thermo_file)
+{
+  struct timeval current_tv;
+  time_t now_seconds;
+  struct tm *now_tm;
+  FILE *temperature;
+  char time_buf[64];
+  ssize_t num_chars_read;
+
+  if ((temperature = fopen(_thermo_file,"r")) == NULL) {
+     syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", _thermo_file);
+  } else {
+  	num_chars_read = fread(_thermo_buf, sizeof(char), 64, temperature);
+  	gettimeofday(&current_tv, NULL);
+  	// Get human readable localtime()
+  	now_seconds = current_tv.tv_sec;
+  	now_tm = localtime(&now_seconds);
+	
+  	strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
+  	syslog(LOG_INFO, "%s: time is now %ld %s. temperature is %s\n", progname, current_tv.tv_sec, time_buf, _thermo_buf);
+  	fclose(temperature);
+  }
+}
+
 int main(int argc, char argv[])
 {
   pid_t pid;
-  FILE *temperature;
+  int heatercontrol = 0;
+  char thermo_buf[128];
 
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
   syslog(LOG_INFO, "%s starting up", progname);
@@ -75,11 +104,6 @@ int main(int argc, char argv[])
     return errno;
   }
 
-  if ((temperature = fopen(therm_file,"r")) == NULL) {
-     syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", therm_file);
-     return EIO;
-  }
-
   signal(SIGTERM, _ece531d_sig_handler);
   signal(SIGHUP, _ece531d_sig_handler);
 
@@ -87,24 +111,34 @@ int main(int argc, char argv[])
   // Else we will read from it forever.
   // while forever, do sleep 1 and log time
   do {
-    struct timeval current_tv;
-    time_t now_seconds;
-    struct tm *now_tm;
-    char time_buf[64];
-    ssize_t num_chars_read;
-    char thermo_buf[128];
+  	struct timeval current_tv;
+  	time_t now_seconds;
+  	struct tm *now_tm;
+  	char time_buf[64];
+	const char action[] = "OFF";
 
-    num_chars_read = fread(thermo_buf, sizeof(char), 64, temperature);
-    gettimeofday(&current_tv, NULL);
-    // Get human readable localtime()
-    now_seconds = current_tv.tv_sec;
-    now_tm = localtime(&now_seconds);
-
-    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
-    syslog(LOG_INFO, "%s: time is now %ld %s. temperature is %s\n", progname, current_tv.tv_sec, time_buf, thermo_buf);
-    fclose(temperature);
+    _ece531_read_data(thermo_buf, therm_file);
     sleep(1);
-  } while ((temperature = fopen(therm_file,"r")) != NULL) ;
+    // Every 30 seconds, turn off the heater for now.
+    heatercontrol++;
+    if (heatercontrol > 30) {
+        FILE *heater;
+	if ((heater = fopen(heater_file, "w+")) == NULL) {
+    	    syslog(LOG_ERR, "%s: unable to open %s err %s\n", progname, heater_file, strerror(errno));
+        } else {
+	    heatercontrol = 0;
+  	    gettimeofday(&current_tv, NULL);
+  	    // Get human readable localtime()
+  	    now_seconds = current_tv.tv_sec;
+  	    now_tm = localtime(&now_seconds);
+  	    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
+	    if ((fprintf(heater, "action:=%s timestamp:=%s", action, time_buf)) <= 0) {
+    	        syslog(LOG_ERR, "%s: unable to write data to %s err %s\n", progname, heater_file, strerror(errno));
+	    }
+	    fclose(heater);
+        }
+    }
+  } while (1) ;
 
   syslog(LOG_ERR, "%s: SHOULD NOT BE HERE error opening thermocouple file: %s\n", progname, strerror(errno));
   return 0;
