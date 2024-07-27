@@ -8,9 +8,9 @@ LIBS=-lcurl -uClibc -lc
 ODIR=./
 LDIR=./
 
-BINARY=ece531
+BINARY=ece531d
 
-_DEPS = ${BINARY}.h
+_DEPS = ${BINARY}.h ${BINARY}.c
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ = ${BINARY}.o 

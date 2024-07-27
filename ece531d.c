@@ -14,6 +14,7 @@
 
 
 const char progname[] = "ece531d";
+char therm_file[] = "/var/log/temperature";
 
 //void openlog(const char *ident, int option, int facility);
 //void syslog(int priority, const char *format, ...);
@@ -43,6 +44,7 @@ static void _ece531d_sig_handler(const int signal)
 int main(int argc, char argv[])
 {
   pid_t pid;
+  FILE *temperature;
 
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
   syslog(LOG_INFO, "%s starting up", progname);
@@ -73,9 +75,16 @@ int main(int argc, char argv[])
     return errno;
   }
 
+  if ((temperature = fopen(therm_file,"r")) == NULL) {
+     syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", therm_file);
+     return EIO;
+  }
+
   signal(SIGTERM, _ece531d_sig_handler);
   signal(SIGHUP, _ece531d_sig_handler);
 
+  // Check for /var/log/temperatur, error and exit if failure with log message
+  // Else we will read from it forever.
   // while forever, do sleep 1 and log time
   while ( 1 ) {
     struct timeval current_tv;
