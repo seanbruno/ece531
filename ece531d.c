@@ -69,11 +69,35 @@ void _ece531_read_data(char *_thermo_buf, char *_thermo_file)
   }
 }
 
+void _ece531_toggle_tc(char *_thermo_cmd, char *_heater_file)
+{
+    FILE *heater;
+    struct timeval current_tv;
+    time_t now_seconds;
+    struct tm *now_tm;
+    char time_buf[64];
+
+    if ((heater = fopen(_heater_file, "w+")) == NULL) {
+        syslog(LOG_ERR, "%s: unable to open %s err %s\n", progname, _heater_file, strerror(errno));
+    } else {
+        gettimeofday(&current_tv, NULL);
+        // Get human readable localtime()
+        now_seconds = current_tv.tv_sec;
+        now_tm = localtime(&now_seconds);
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
+            if ((fprintf(heater, "action:=%s timestamp:=%s", _thermo_cmd, time_buf)) <= 0) {
+                syslog(LOG_ERR, "%s: unable to write data to %s err %s\n", progname, heater_file, strerror(errno));
+	    } 
+        fclose(heater);
+    }
+}
+
 int main(int argc, char argv[])
 {
   pid_t pid;
   int heatercontrol = 0;
   char thermo_buf[128];
+  char action[] = "OFF";
 
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
   syslog(LOG_INFO, "%s starting up", progname);
@@ -111,32 +135,13 @@ int main(int argc, char argv[])
   // Else we will read from it forever.
   // while forever, do sleep 1 and log time
   do {
-  	struct timeval current_tv;
-  	time_t now_seconds;
-  	struct tm *now_tm;
-  	char time_buf[64];
-	const char action[] = "OFF";
-
     _ece531_read_data(thermo_buf, therm_file);
     sleep(1);
     // Every 30 seconds, turn off the heater for now.
     heatercontrol++;
     if (heatercontrol > 30) {
-        FILE *heater;
-	if ((heater = fopen(heater_file, "w+")) == NULL) {
-    	    syslog(LOG_ERR, "%s: unable to open %s err %s\n", progname, heater_file, strerror(errno));
-        } else {
-	    heatercontrol = 0;
-  	    gettimeofday(&current_tv, NULL);
-  	    // Get human readable localtime()
-  	    now_seconds = current_tv.tv_sec;
-  	    now_tm = localtime(&now_seconds);
-  	    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
-	    if ((fprintf(heater, "action:=%s timestamp:=%s", action, time_buf)) <= 0) {
-    	        syslog(LOG_ERR, "%s: unable to write data to %s err %s\n", progname, heater_file, strerror(errno));
-	    }
-	    fclose(heater);
-        }
+        heatercontrol = 0;
+	_ece531_toggle_tc(action, heater_file);
     }
   } while (1) ;
 
