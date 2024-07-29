@@ -10,25 +10,18 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
-
-
+#include <curl/curl.h>
 
 const char progname[] = "ece531d";
 char therm_file[] = "/var/log/temp";
 // format:  action:=<on|off> timestamp:=posix_time
 char heater_file[] = "/var/log/status";
 
-// Define our schedule of temps
-struct {
-	float user_temp[10];
-	struct tm time_of_day[10];
-} temperature_schedule;
-
-//void openlog(const char *ident, int option, int facility);
-//void syslog(int priority, const char *format, ...);
-//void closelog(void);
-//int gettimeofday(struct timeval *tv, struct timezone *tz);
-
+char url_api_schedulep[] = "http://ec2-3-136-15-74.us-east-2.compute.amazonaws.com:8080/";
+// Global tmp file handle for the return from libcurl, created via mkstemp
+char temp_file[] = "/tmp/ece531.XXXXXX";
+FILE *curl_tmp_file;
+float sched_temp = -255.0;
 
 // signal handler for exiting
 static void _ece531d_sig_handler(const int signal)
@@ -41,6 +34,7 @@ static void _ece531d_sig_handler(const int signal)
       break;
     case SIGTERM:
       syslog(LOG_INFO, "%s: Shutting down on SIGTERM\n", progname);
+      fclose(curl_tmp_file);
       closelog();
       exit(0);
       break;
@@ -75,6 +69,8 @@ void _ece531_read_data(char *_thermo_buf, char *_thermo_file)
   }
 }
 
+// Write to the thermocoouple control file
+// to enable or disable the heater.
 void _ece531_toggle_tc(char *_thermo_cmd, char *_heater_file)
 {
     FILE *heater;
@@ -91,11 +87,65 @@ void _ece531_toggle_tc(char *_thermo_cmd, char *_heater_file)
         now_seconds = current_tv.tv_sec;
         now_tm = localtime(&now_seconds);
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", now_tm);
-            if ((fprintf(heater, "action:=%s timestamp:=%s", _thermo_cmd, time_buf)) <= 0) {
-                syslog(LOG_ERR, "%s: unable to write data to %s err %s\n", progname, heater_file, strerror(errno));
-	    } 
+        if ((fprintf(heater, "action:=%s timestamp:=%s", _thermo_cmd, time_buf)) <= 0) {
+          syslog(LOG_ERR, "%s: unable to write data to %s err %s\n", progname, heater_file, strerror(errno));
+	} 
         fclose(heater);
     }
+}
+
+// Use curl callback to reliably update the current hour's temp setting
+size_t _ece531_update_sched_temp(void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+    size_t written = fwrite(ptr, size, nmemb, stream);
+    char *json_data = ptr, *top_record, *record_pos, *record_value;
+
+
+    // Grab json data first
+    //{tod: 00, temp: 50
+    top_record = strtok(json_data,"}");
+    // Now parse this into tokens
+    record_pos = strtok(top_record,",");
+    record_pos = strtok(NULL,",");
+    // Last token is the temp for this hour
+    record_value = strtok(record_pos, ": ");
+    record_value = strtok(NULL, ": ");
+    sched_temp = atof(record_value);
+    return written;
+}
+// do a time stuff, get hour of day, do curl stuff to _uri/HH, parse response, return temp float
+void _ece531_get_sched_temp(char *_uri)
+{
+    struct timeval current_tv;
+    time_t now_seconds;
+    struct tm *now_tm;
+    char hour[3];
+    char api_uri[128];
+    CURL *curl;
+    CURLcode res;
+    int ret;
+
+
+    gettimeofday(&current_tv, NULL);
+    now_seconds = current_tv.tv_sec;
+    now_tm = localtime(&now_seconds);
+
+    strftime(hour, sizeof(hour), "%H", now_tm);
+    sprintf(api_uri,"%s/%s", _uri, hour);
+    syslog(LOG_INFO, "%s: constructed uri %s\n", progname, api_uri);
+
+    curl = curl_easy_init();
+    if(curl) {
+      curl_easy_setopt(curl, CURLOPT_URL, api_uri);
+      curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _ece531_update_sched_temp);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, curl_tmp_file);
+      res = curl_easy_perform(curl);
+      if(res != CURLE_OK)
+        fprintf(stderr, "curl_easy_perform() failed get: %s\n",
+                curl_easy_strerror(res));
+      curl_easy_cleanup(curl);
+    } 
 }
 
 int main(int argc, char argv[])
@@ -140,16 +190,21 @@ int main(int argc, char argv[])
   // Check for /var/log/temperatur, error and exit if failure with log message
   // Else we will read from it forever.
   // while forever, do sleep 1 and log time
-  temperature_schedule.user_temp[0] = 25.0;
+  curl_tmp_file = fdopen(mkstemp(temp_file),"w+");
   do {
     _ece531_read_data(thermo_buf, therm_file);
     cur_temp = atof(thermo_buf);
     // Every 5 seconds, turn off the heater for now.
     heatercontrol++;
     if (heatercontrol > 5) {
-	if (cur_temp < temperature_schedule.user_temp[0]) {
+	int ret;
+    	char record[64];
+
+ 	_ece531_get_sched_temp(url_api_schedulep);
+
+	if (cur_temp < sched_temp) {
 		_ece531_toggle_tc("ON", heater_file);
-	} else if (cur_temp > temperature_schedule.user_temp[0]) {
+	} else if (cur_temp > sched_temp) {
 		_ece531_toggle_tc("OFF", heater_file);
 	}
         heatercontrol = 0;
