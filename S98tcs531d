@@ -1,15 +1,14 @@
 #!/bin/sh
 
-DAEMON="ece531d"
+DAEMON="tcsimd"
 LOCKFILE=/var/lock/${DAEMON}.lock
-CONFIGFILE=/etc/ece531d.config
 
 start() {
   if [ -f ${LOCKFILE} ]; then
     printf "${LOCKFILE} detected.  Run stop then start to clear"
   else
 	  printf "Starting ${DAEMON}: "
-	  /usr/sbin/${DAEMON} --config_file ${CONFIGFILE}
+	  /usr/sbin/${DAEMON}
 	  touch ${LOCKFILE}
   fi
 	echo "OK"
