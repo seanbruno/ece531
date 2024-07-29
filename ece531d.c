@@ -16,11 +16,13 @@
 
 #define MAX_STR_LEN 256
 const char progname[] = "ece531d";
-//
-// format:  action:=<on|off> timestamp:=posix_time
-char therm_file[] = "/var/log/temp";
-char heater_file[] = "/var/log/status";
 
+// Configuration defaults for this class.
+// Can be adjusted in the configuration file in /etc/ece531d.config
+// or in --config_file <filename>, else it will assume these defaults.
+// format:  action:=<on|off> timestamp:=posix_time
+char therm_file[MAX_STR_LEN] = "/var/log/temp";
+char heater_file[MAX_STR_LEN] = "/var/log/status";
 char url_api_schedulep[MAX_STR_LEN] = "http://ec2-3-136-15-74.us-east-2.compute.amazonaws.com:8080/";
 
 // Global tmp file handle for the return from libcurl, created via mkstemp
@@ -60,7 +62,7 @@ void _ece531_read_data(char *_thermo_buf, char *_thermo_file)
   ssize_t num_chars_read;
 
   if ((temperature = fopen(_thermo_file,"r")) == NULL) {
-     syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", _thermo_file);
+     syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", progname, _thermo_file);
   } else {
   	num_chars_read = fread(_thermo_buf, sizeof(char), MAX_STR_LEN, temperature);
   	gettimeofday(&current_tv, NULL);
@@ -130,7 +132,6 @@ void _ece531_get_sched_temp(char *_uri)
     CURLcode res;
     int ret;
 
-
     gettimeofday(&current_tv, NULL);
     now_seconds = current_tv.tv_sec;
     now_tm = localtime(&now_seconds);
@@ -156,10 +157,46 @@ void _ece531_get_sched_temp(char *_uri)
     } 
 }
 
-void usage(char *progname)
+void usage(const char *progname)
 {
   fprintf(stderr, "Usage: %s -u|--url url of control host\n  [-c|--config_file] configuration file]\n  [-l|--log_file]\n  [-h|--help]\n\n",
           progname);
+}
+
+void parse_config(char *config_file)
+{
+  FILE *new_config;
+
+	if ((new_config = fopen(config_file,"r")) == NULL) {
+		usage(progname);
+	} else {
+		char read_buffer[MAX_STR_LEN] = "";
+		char *config_line, *config_tag;
+		int chars_in_line;
+
+  	while (fgets(read_buffer, MAX_STR_LEN, new_config) != NULL) {
+		  config_line = read_buffer;
+		  config_tag = strtok(config_line, "|");
+		  do {
+		    if (strcmp(config_tag,"url") == 0) {
+				  config_tag = strtok(NULL, "|");
+					sprintf(url_api_schedulep,"%s",config_tag);
+					url_api_schedulep[strlen(url_api_schedulep) - 1] = '\0';
+    		  syslog(LOG_INFO, "%s:url found %s\n", progname, url_api_schedulep);
+		    } else if (strcmp(config_tag,"heater_control") == 0) {
+				  config_tag = strtok(NULL, "|");
+					sprintf(heater_file,"%s",config_tag);
+					heater_file[strlen(heater_file) - 1] = '\0';
+    		  syslog(LOG_INFO, "%s:heater_control found %s\n", progname, heater_file);
+		    } else if (strcmp(config_tag,"thermostat_status") == 0) {
+				  config_tag = strtok(NULL, "|");
+					sprintf(therm_file,"%s",config_tag);
+					therm_file[strlen(therm_file) - 1] = '\0';
+    		  syslog(LOG_INFO, "%s:thermostat_status found %s\n", progname, therm_file);
+				}
+		  } while((config_tag = strtok(NULL, "|")) != NULL);
+		}
+	}
 }
 
 int main(int argc, char *argv[])
@@ -215,14 +252,15 @@ int main(int argc, char *argv[])
         break;
       case 'h':
       default: /* '?' */
-        usage(argv[0]);
+        usage((const char *)argv[0]);
         exit(EXIT_SUCCESS);
     }
   }
 
 
-
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
+  if (config_passed)
+    parse_config(config_file);
   syslog(LOG_INFO, "%s starting up", progname);
   // Fork and go away
   if ((pid = fork()) == 0) {
