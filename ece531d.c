@@ -143,12 +143,15 @@ void _ece531_get_sched_temp(char *_uri)
     if(curl) {
       curl_easy_setopt(curl, CURLOPT_URL, api_uri);
       curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+      curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
+      curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _ece531_update_sched_temp);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, curl_tmp_file);
       res = curl_easy_perform(curl);
-      if(res != CURLE_OK)
-        fprintf(stderr, "curl_easy_perform() failed get: %s\n",
+      if(res != CURLE_OK) {
+    	syslog(LOG_ERR, "%s: curl_easy_perform() failed get: %s\n", progname,
                 curl_easy_strerror(res));
+      }
       curl_easy_cleanup(curl);
     } 
 }
