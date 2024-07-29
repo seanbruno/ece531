@@ -11,13 +11,18 @@
 #include <sys/time.h>
 #include <time.h>
 #include <curl/curl.h>
+#include <getopt.h>
+#include <stdbool.h>
 
+#define MAX_STR_LEN 256
 const char progname[] = "ece531d";
-char therm_file[] = "/var/log/temp";
+//
 // format:  action:=<on|off> timestamp:=posix_time
+char therm_file[] = "/var/log/temp";
 char heater_file[] = "/var/log/status";
 
-char url_api_schedulep[] = "http://ec2-3-136-15-74.us-east-2.compute.amazonaws.com:8080/";
+char url_api_schedulep[MAX_STR_LEN] = "http://ec2-3-136-15-74.us-east-2.compute.amazonaws.com:8080/";
+
 // Global tmp file handle for the return from libcurl, created via mkstemp
 char temp_file[] = "/tmp/ece531.XXXXXX";
 FILE *curl_tmp_file;
@@ -51,13 +56,13 @@ void _ece531_read_data(char *_thermo_buf, char *_thermo_file)
   time_t now_seconds;
   struct tm *now_tm;
   FILE *temperature;
-  char time_buf[64];
+  char time_buf[MAX_STR_LEN] = "";
   ssize_t num_chars_read;
 
   if ((temperature = fopen(_thermo_file,"r")) == NULL) {
      syslog(LOG_ERR, "%s: failed to open thermocouple file %s\n", _thermo_file);
   } else {
-  	num_chars_read = fread(_thermo_buf, sizeof(char), 64, temperature);
+  	num_chars_read = fread(_thermo_buf, sizeof(char), MAX_STR_LEN, temperature);
   	gettimeofday(&current_tv, NULL);
   	// Get human readable localtime()
   	now_seconds = current_tv.tv_sec;
@@ -77,7 +82,7 @@ void _ece531_toggle_tc(char *_thermo_cmd, char *_heater_file)
     struct timeval current_tv;
     time_t now_seconds;
     struct tm *now_tm;
-    char time_buf[64];
+    char time_buf[MAX_STR_LEN] ="";
 
     if ((heater = fopen(_heater_file, "w+")) == NULL) {
         syslog(LOG_ERR, "%s: unable to open %s err %s\n", progname, _heater_file, strerror(errno));
@@ -120,7 +125,7 @@ void _ece531_get_sched_temp(char *_uri)
     time_t now_seconds;
     struct tm *now_tm;
     char hour[3];
-    char api_uri[128];
+    char api_uri[MAX_STR_LEN] = "";
     CURL *curl;
     CURLcode res;
     int ret;
@@ -148,12 +153,71 @@ void _ece531_get_sched_temp(char *_uri)
     } 
 }
 
-int main(int argc, char argv[])
+void usage(char *progname)
+{
+  fprintf(stderr, "Usage: %s -u|--url url of control host\n  [-c|--config_file] configuration file]\n  [-l|--log_file]\n  [-h|--help]\n\n",
+          progname);
+}
+
+int main(int argc, char *argv[])
 {
   pid_t pid;
   int heatercontrol = 6;
-  char thermo_buf[128];
+  char thermo_buf[MAX_STR_LEN] = "";
   float cur_temp = 0.0;
+  struct option ece531d_options[] = {
+    {"url",        required_argument, 0, 'u' },
+    {"config_file",required_argument, 0, 'c' },
+    {"log_file",   required_argument, 0, 'l' },
+    {"help",       no_argument,       0, 'h' },
+    {0,            0,                 0, 0 }
+  };
+  int opt;
+  int option_index = 0;
+  int user_input = 0;
+  bool config_passed = false;
+  char config_file[MAX_STR_LEN] = "";
+  bool logfile_passed = false;
+  char log_file[MAX_STR_LEN] = "";
+
+  while ((opt = getopt_long(argc, argv, "u:c:l:h", ece531d_options, &option_index)) != -1 ) {
+    if ( opt == -1 )
+      break;
+
+    user_input = optind;
+
+    switch (opt) {
+      case 'u':
+        // check for various errors in the url
+        if (strlen(optarg) <= 0)
+          break;
+        // do a stcopy
+        strncpy(url_api_schedulep, optarg, MAX_STR_LEN);
+        break;
+      case 'c':
+        // Configuration file passed, fire up parser after options are parsed.
+        if (strlen(optarg) <= 0)
+          break;
+        // do a stcopy
+        strncpy(config_file, optarg, MAX_STR_LEN);
+        config_passed = true;
+        break;
+      case 'l':
+        // Some kind of log file, no idea why as have been just using syslog
+        if (strlen(optarg) <= 0)
+          break;
+        // do a stcopy
+        strncpy(log_file, optarg, MAX_STR_LEN);
+        logfile_passed = true;
+        break;
+      case 'h':
+      default: /* '?' */
+        usage(argv[0]);
+        exit(EXIT_SUCCESS);
+    }
+  }
+
+
 
   openlog(progname, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
   syslog(LOG_INFO, "%s starting up", progname);
@@ -198,7 +262,7 @@ int main(int argc, char argv[])
     heatercontrol++;
     if (heatercontrol > 5) {
 	int ret;
-    	char record[64];
+    	char record[MAX_STR_LEN];
 
  	_ece531_get_sched_temp(url_api_schedulep);
 
